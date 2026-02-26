@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tic-Tac-Toe Multiplayer</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Lobby Screen -->
+  <div id="lobby" class="screen">
+    <h1>Tic-Tac-Toe</h1>
+    <p class="subtitle">Real-Time Multiplayer</p>
+
+    <div class="lobby-actions">
+      <button id="create-btn" class="btn btn-primary">Create Game</button>
+
+      <div class="divider"><span>or</span></div>
+
+      <div class="join-group">
+        <input
+          id="code-input"
+          type="text"
+          placeholder="Enter game code"
+          maxlength="6"
+          autocomplete="off"
+        />
+        <button id="join-btn" class="btn btn-secondary">Join Game</button>
+      </div>
+    </div>
+
+    <p id="lobby-error" class="error" hidden></p>
+  </div>
+
+  <!-- Game Screen -->
+  <div id="game" class="screen" hidden>
+    <div class="game-header">
+      <div class="game-info">
+        <span class="label">Game Code:</span>
+        <span id="game-code" class="code"></span>
+      </div>
+      <div class="game-info">
+        <span class="label">You are:</span>
+        <span id="player-symbol" class="symbol"></span>
+      </div>
+    </div>
+
+    <p id="status-bar" class="status-bar">Waiting for opponent...</p>
+
+    <div id="board" class="board">
+      <button class="cell" data-row="0" data-col="0"></button>
+      <button class="cell" data-row="0" data-col="1"></button>
+      <button class="cell" data-row="0" data-col="2"></button>
+      <button class="cell" data-row="1" data-col="0"></button>
+      <button class="cell" data-row="1" data-col="1"></button>
+      <button class="cell" data-row="1" data-col="2"></button>
+      <button class="cell" data-row="2" data-col="0"></button>
+      <button class="cell" data-row="2" data-col="1"></button>
+      <button class="cell" data-row="2" data-col="2"></button>
+    </div>
+
+    <button id="back-btn" class="btn btn-link">Back to Lobby</button>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>
