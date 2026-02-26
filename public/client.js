@@ -20,6 +20,50 @@ let mySymbol = null; // 'X' or 'O'
 let gameState = null; // latest game-update payload
 let gameOver = false;
 
+// ── Session Persistence ─────────────────────────────
+function saveSession(gameCode, symbol, playerId) {
+  sessionStorage.setItem("ttt_gameCode", gameCode);
+  sessionStorage.setItem("ttt_symbol", symbol);
+  sessionStorage.setItem("ttt_playerId", playerId);
+}
+
+function clearSession() {
+  sessionStorage.removeItem("ttt_gameCode");
+  sessionStorage.removeItem("ttt_symbol");
+  sessionStorage.removeItem("ttt_playerId");
+}
+
+function getSavedSession() {
+  const gameCode = sessionStorage.getItem("ttt_gameCode");
+  const symbol = sessionStorage.getItem("ttt_symbol");
+  const playerId = sessionStorage.getItem("ttt_playerId");
+  if (gameCode && symbol && playerId) {
+    return { gameCode, symbol, playerId };
+  }
+  return null;
+}
+
+// ── Attempt Rejoin on Load ──────────────────────────
+function attemptRejoin() {
+  const session = getSavedSession();
+  if (!session) return;
+
+  socket.emit("rejoin-game", { gameCode: session.gameCode, playerId: session.playerId }, (response) => {
+    if (response.error) {
+      clearSession();
+      return;
+    }
+    mySymbol = response.symbol;
+    gameCodeEl.textContent = session.gameCode;
+    updateSymbolDisplay();
+    showGame();
+  });
+}
+
+socket.on("connect", () => {
+  attemptRejoin();
+});
+
 // ── Screen Switching ────────────────────────────────
 function showLobby() {
   lobbyScreen.hidden = false;
@@ -30,6 +74,7 @@ function showLobby() {
   mySymbol = null;
   gameState = null;
   gameOver = false;
+  clearSession();
   clearBoard();
 }
 
@@ -45,6 +90,7 @@ createBtn.addEventListener("click", () => {
     createBtn.disabled = false;
     if (response && response.gameCode) {
       mySymbol = "X"; // creator is always X
+      saveSession(response.gameCode, "X", response.playerId);
       gameCodeEl.textContent = response.gameCode;
       updateSymbolDisplay();
       showGame();
@@ -67,6 +113,7 @@ joinBtn.addEventListener("click", () => {
       showLobbyError(response.error);
     } else {
       mySymbol = "O"; // joiner is always O
+      saveSession(gameCode, "O", response.playerId);
       gameCodeEl.textContent = gameCode;
       updateSymbolDisplay();
       showGame();
@@ -121,8 +168,7 @@ socket.on("move-error", (data) => {
 });
 
 socket.on("opponent-disconnected", () => {
-  gameOver = true;
-  setStatus("Opponent disconnected.", "disconnected");
+  setStatus("Opponent disconnected. Waiting for reconnect...", "disconnected");
   disableAllCells();
 });
 
