@@ -173,6 +173,20 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('leave-game', () => {
+    const info = playerGameMap.get(socket.id);
+    if (!info) return;
+
+    const game = games.get(info.gameCode);
+    playerGameMap.delete(socket.id);
+    socket.leave(info.gameCode);
+
+    if (game) {
+      socket.to(info.gameCode).emit('opponent-disconnected', {});
+      games.delete(info.gameCode);
+    }
+  });
+
   socket.on('make-move', ({ row, col }) => {
     const info = playerGameMap.get(socket.id);
     if (!info) return;

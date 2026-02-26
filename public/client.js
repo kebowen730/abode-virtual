@@ -289,5 +289,6 @@ function updateSymbolDisplay() {
 
 // ── Back to Lobby ───────────────────────────────────
 backBtn.addEventListener("click", () => {
+  socket.emit("leave-game");
   showLobby();
 });
