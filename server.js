@@ -110,7 +110,7 @@ io.on('connection', (socket) => {
     playerGameMap.set(socket.id, { gameCode: code, symbol, playerId });
     socket.join(code);
     callback({ symbol });
-    socket.emit('game-update', getGameUpdate(game));
+    io.to(code).emit('game-update', getGameUpdate(game));
   });
 
   socket.on('make-move', ({ row, col }) => {
