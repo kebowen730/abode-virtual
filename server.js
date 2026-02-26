@@ -13,6 +13,7 @@ app.use(express.static('public'));
 const games = new Map();
 const playerGameMap = new Map(); // socketId -> { gameCode, symbol, playerId }
 const disconnectTimers = new Map(); // playerId -> timeout
+const matchQueue = []; // array of socket IDs waiting for a match
 
 const DISCONNECT_GRACE_MS = 30_000;
 
@@ -113,6 +114,65 @@ io.on('connection', (socket) => {
     io.to(code).emit('game-update', getGameUpdate(game));
   });
 
+  socket.on('find-match', (callback) => {
+    // Don't queue if already in a game
+    if (playerGameMap.has(socket.id)) {
+      return callback({ error: 'Already in a game' });
+    }
+    // Don't double-queue
+    if (matchQueue.includes(socket.id)) {
+      return callback({ error: 'Already in queue' });
+    }
+
+    // Check if there's someone waiting
+    if (matchQueue.length > 0) {
+      const opponentId = matchQueue.shift();
+      const opponentSocket = io.sockets.sockets.get(opponentId);
+
+      // If opponent disconnected while waiting, skip them and queue this player
+      if (!opponentSocket) {
+        matchQueue.push(socket.id);
+        return callback({});
+      }
+
+      // Create a game and pair them
+      const gameCode = generateCode();
+      const game = createGame(gameCode);
+
+      const playerIdX = generatePlayerId();
+      const playerIdO = generatePlayerId();
+
+      game.players.X = playerIdX;
+      game.players.O = playerIdO;
+      game.socketIds = { X: opponentId, O: socket.id };
+      game.status = 'playing';
+      games.set(gameCode, game);
+
+      playerGameMap.set(opponentId, { gameCode, symbol: 'X', playerId: playerIdX });
+      playerGameMap.set(socket.id, { gameCode, symbol: 'O', playerId: playerIdO });
+
+      opponentSocket.join(gameCode);
+      socket.join(gameCode);
+
+      opponentSocket.emit('match-found', { gameCode, symbol: 'X', playerId: playerIdX });
+      socket.emit('match-found', { gameCode, symbol: 'O', playerId: playerIdO });
+
+      io.to(gameCode).emit('game-update', getGameUpdate(game));
+      callback({});
+    } else {
+      // No one waiting — add to queue
+      matchQueue.push(socket.id);
+      callback({});
+    }
+  });
+
+  socket.on('cancel-match', () => {
+    const idx = matchQueue.indexOf(socket.id);
+    if (idx !== -1) {
+      matchQueue.splice(idx, 1);
+    }
+  });
+
   socket.on('make-move', ({ row, col }) => {
     const info = playerGameMap.get(socket.id);
     if (!info) return;
@@ -130,6 +190,12 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    // Remove from matchmaking queue if queued
+    const queueIdx = matchQueue.indexOf(socket.id);
+    if (queueIdx !== -1) {
+      matchQueue.splice(queueIdx, 1);
+    }
+
     const info = playerGameMap.get(socket.id);
     if (!info) return;
 

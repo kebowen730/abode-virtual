@@ -14,6 +14,9 @@ const statusBar = document.getElementById("status-bar");
 const boardEl = document.getElementById("board");
 const cells = boardEl.querySelectorAll(".cell");
 const backBtn = document.getElementById("back-btn");
+const findMatchBtn = document.getElementById("find-match-btn");
+const cancelMatchBtn = document.getElementById("cancel-match-btn");
+const matchmakingStatus = document.getElementById("matchmaking-status");
 
 // ── Client State ────────────────────────────────────
 let mySymbol = null; // 'X' or 'O'
@@ -76,6 +79,10 @@ function showLobby() {
   gameOver = false;
   clearSession();
   clearBoard();
+  // Reset matchmaking UI and cancel if queued
+  socket.emit("cancel-match");
+  findMatchBtn.hidden = false;
+  matchmakingStatus.hidden = true;
 }
 
 function showGame() {
@@ -125,6 +132,35 @@ codeInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     joinBtn.click();
   }
+});
+
+// ── Matchmaking ────────────────────────────────────
+findMatchBtn.addEventListener("click", () => {
+  findMatchBtn.hidden = true;
+  matchmakingStatus.hidden = false;
+  socket.emit("find-match", (response) => {
+    if (response && response.error) {
+      findMatchBtn.hidden = false;
+      matchmakingStatus.hidden = true;
+      showLobbyError(response.error);
+    }
+  });
+});
+
+cancelMatchBtn.addEventListener("click", () => {
+  socket.emit("cancel-match");
+  findMatchBtn.hidden = false;
+  matchmakingStatus.hidden = true;
+});
+
+socket.on("match-found", (data) => {
+  findMatchBtn.hidden = false;
+  matchmakingStatus.hidden = true;
+  mySymbol = data.symbol;
+  saveSession(data.gameCode, data.symbol, data.playerId);
+  gameCodeEl.textContent = data.gameCode;
+  updateSymbolDisplay();
+  showGame();
 });
 
 function showLobbyError(msg) {
